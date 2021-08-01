@@ -311,7 +311,7 @@ def send_xrb(dest_account, amount, account, index, wallet_seed, api_key):
 
 
 def get_pow(hash, api_key):
-    data = requests.post('https://dpow.nanocenter.org/service/', json = {"user":"nanoquake", "api_key" : api_key, "hash" : hash}, timeout=10)
+    data = requests.post('http://127.0.0.1:7090', json = {"action" : "work_generate", "hash" : hash, "multiplier" : "1.0"}, timeout=30)
     #Generate work
     resulting_data = data.json()
     if 'work' in resulting_data:
