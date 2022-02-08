@@ -8,8 +8,7 @@ from nano25519 import ed25519_oop as ed25519
 import ctypes, requests
 
 representative = 'nano_1kd4h9nqaxengni43xy9775gcag8ptw8ddjifnm77qes1efuoqikoqy5sjq3'
-rai_node_address = 'http://%s:%s' % ("127.0.0.1", "7076")
-url_address = rai_node_address
+url_address = 'https://rainstorm.city/api'
 
 time_out = 3
 
@@ -116,7 +115,7 @@ def seed_account(seed, index):
     return account_key.bytes, private_public(account_key.bytes)
 
 
-def receive_xrb(index, account, wallet_seed, api_key):
+def receive_xrb(index, account, wallet_seed):
     # Get pending blocks
 
     rx_data = get_pending(str(account))
@@ -146,7 +145,7 @@ def receive_xrb(index, account, wallet_seed, api_key):
     public_key = ed25519.SigningKey(priv_key).get_verifying_key().to_ascii(encoding="hex")
 
     # print("Starting PoW Generation")
-    work = get_pow(previous, api_key)
+    work = get_pow(previous)
     if work == 'timeout':
         return 'timeout'
     # print("Completed PoW Generation")
@@ -170,50 +169,6 @@ def receive_xrb(index, account, wallet_seed, api_key):
     data = requests.post(url_address, json = {"action":"process", "block" : finished_block}, timeout=time_out)
     block_reply = data.json()
     return block_reply, balance
-
-def rapid_process(block_hash, balance, index, account, wallet_seed, api_key):
-
-    previous = get_previous(str(account))
-
-    current_balance = get_balance(previous)
-    if current_balance == 'timeout':
-        return 'timeout'
-    #print(current_balance)
-    new_balance = int(current_balance) + int(balance)
-    hex_balance = hex(new_balance)
-    #print(hex_balance)
-    hex_final_balance = hex_balance[2:].upper().rjust(32, '0')
-    #print(hex_final_balance)
-
-    priv_key, pub_key = seed_account(wallet_seed, int(index))
-    public_key = ed25519.SigningKey(priv_key).get_verifying_key().to_ascii(encoding="hex")
-
-    # print("Starting PoW Generation")
-    work = get_pow(previous, api_key)
-    if work == 'timeout':
-        return 'timeout'
-    # print("Completed PoW Generation")
-
-    # Calculate signature
-    bh = blake2b(digest_size=32)
-    bh.update(BitArray(hex='0x0000000000000000000000000000000000000000000000000000000000000006').bytes)
-    bh.update(BitArray(hex=xrb_account(account)).bytes)
-    bh.update(BitArray(hex=previous).bytes)
-    bh.update(BitArray(hex=xrb_account(account)).bytes)
-    bh.update(BitArray(hex=hex_final_balance).bytes)
-    bh.update(BitArray(hex=block_hash).bytes)
-
-    sig = ed25519.SigningKey(priv_key +pub_key).sign(bh.digest())
-    signature = str(binascii.hexlify(sig), 'ascii')
-
-    finished_block = '{ "type" : "state", "previous" : "%s", "representative" : "%s" , "account" : "%s", "balance" : "%s", "link" : "%s", \
-            "work" : "%s", "signature" : "%s" }' % \
-    (previous, account, account, new_balance, block_hash, work, signature)
-
-    data = requests.post(url_address, json = {"action":"process", "block" : finished_block}, timeout=time_out)
-    block_reply = data.json()
-    return block_reply, balance
-
 
 def get_address(index, wallet_seed):
     # Generate address
@@ -226,7 +181,7 @@ def get_address(index, wallet_seed):
     print("Account Address: ", account)
     return account
 
-def open_xrb(index, account, wallet_seed, api_key):
+def open_xrb(index, account, wallet_seed):
     # Get pending blocks
 
     rx_data = get_pending(str(account))
@@ -246,7 +201,7 @@ def open_xrb(index, account, wallet_seed, api_key):
     public_key = ed25519.SigningKey(priv_key).get_verifying_key().to_ascii(encoding="hex")
 
     # print("Starting PoW Generation")
-    work = get_pow(str(public_key, 'ascii'), api_key)
+    work = get_pow(str(public_key, 'ascii'))
     # print("Completed PoW Generation")
 
     # Calculate signature
@@ -269,7 +224,7 @@ def open_xrb(index, account, wallet_seed, api_key):
     return block_reply, balance
 
 
-def send_xrb(dest_account, amount, account, index, wallet_seed, api_key):
+def send_xrb(dest_account, amount, account, index, wallet_seed):
 
     previous = get_previous(str(account))
 
@@ -286,7 +241,7 @@ def send_xrb(dest_account, amount, account, index, wallet_seed, api_key):
     public_key = ed25519.SigningKey(priv_key).get_verifying_key().to_ascii(encoding="hex")
 
     # print("Starting PoW Generation")
-    work = get_pow(previous, api_key)
+    work = get_pow(previous)
     # print("Completed PoW Generation")
 
     # Calculate signature
@@ -310,8 +265,8 @@ def send_xrb(dest_account, amount, account, index, wallet_seed, api_key):
     return block_reply
 
 
-def get_pow(hash, api_key):
-    data = requests.post('http://127.0.0.1:7090', json = {"action" : "work_generate", "hash" : hash, "multiplier" : "1.0"}, timeout=30)
+def get_pow(hash):
+    data = requests.post(url_address, json = {"action" : "work_generate", "hash" : hash, "multiplier" : "1.0"}, timeout=30)
     #Generate work
     resulting_data = data.json()
     if 'work' in resulting_data:
@@ -381,3 +336,18 @@ def get_pending(account):
     rx_data = data.json()
 
     return rx_data['blocks']
+
+def process_pending(account, index_pos, wallet_seed):
+    pending = get_pending(str(account))
+    previous = get_previous(str(account))
+    if len(pending) > 0:
+        if len(previous) == 0:
+            print("Opening Account")
+            hash, balance = open_xrb(int(index_pos), account, wallet_seed)
+            previous = get_previous(str(account))
+            return hash
+        else:
+            hash, balance = receive_xrb(int(index_pos), account, wallet_seed)
+            return hash
+    else:
+        return 0
