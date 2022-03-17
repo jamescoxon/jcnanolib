@@ -166,7 +166,7 @@ def receive_xrb(index, account, wallet_seed):
             "work" : "%s", "signature" : "%s" }' % \
     (previous, account, account, new_balance, block_hash, work, signature)
 
-    data = requests.post(url_address, json = {"action":"process", "block" : finished_block}, timeout=time_out)
+    data = requests.post(url_address, json = {"action" : "process", "subtype" : "receive", "block" : finished_block}, timeout=time_out)
     block_reply = data.json()
     return block_reply, balance
 
@@ -219,7 +219,7 @@ def open_xrb(index, account, wallet_seed):
     finished_block = '{ "type" : "state", "previous" : "0000000000000000000000000000000000000000000000000000000000000000", "representative" : "%s" , "account" : "%s", "balance" : "%s", "link" : "%s", \
             "work" : "%s", "signature" : "%s" }' % (account, account, balance, block_hash, work, signature)
     
-    data = requests.post(url_address, json = {"action":"process", "block" : finished_block}, timeout=time_out)
+    data = requests.post(url_address, json = {"action" : "process", "subtype" : "open", "block" : finished_block}, timeout=time_out)
     block_reply = data.json()
     return block_reply, balance
 
@@ -260,7 +260,7 @@ def send_xrb(dest_account, amount, account, index, wallet_seed):
             "work" : "%s", "signature" : "%s" }' % (
     previous, account, account, new_balance, dest_account, work, signature)
 
-    data = requests.post(url_address, json = {"action":"process", "block" : finished_block}, timeout=time_out)
+    data = requests.post(url_address, json = {"action" : "process", "subtype" : "send", "block" : finished_block}, timeout=time_out)
     block_reply = data.json()
     return block_reply
 
